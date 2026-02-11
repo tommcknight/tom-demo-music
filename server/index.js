@@ -153,6 +153,13 @@ Example output:
       }
     });
 
+    console.log('AI response status:', response.status);
+    if (String(response.status) !== '200') {
+      const errBody = response.body;
+      console.error('AI API error:', JSON.stringify(errBody));
+      return res.status(502).json({ error: `AI API returned ${response.status}: ${errBody?.error?.message || JSON.stringify(errBody)}` });
+    }
+
     const content = response.body.choices?.[0]?.message?.content || '';
     // Extract JSON from the response (might be wrapped in markdown code block)
     const jsonMatch = content.match(/\[[\s\S]*\]/);
