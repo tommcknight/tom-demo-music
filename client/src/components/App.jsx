@@ -6,11 +6,26 @@ import ProgressBar from './ProgressBar.jsx';
 import Feedback from './Feedback.jsx';
 import ResultsScreen from './ResultsScreen.jsx';
 import HistoryScreen from './HistoryScreen.jsx';
+import NamePrompt from './NamePrompt.jsx';
 import { useState } from 'react';
 
 export default function App() {
   const session = useSession();
   const [showHistory, setShowHistory] = useState(false);
+  const [playerName, setPlayerName] = useState(() => localStorage.getItem('notequest_name') || '');
+
+  const handleNameSubmit = (name) => {
+    localStorage.setItem('notequest_name', name);
+    setPlayerName(name);
+  };
+
+  if (!playerName) {
+    return (
+      <div className="app">
+        <NamePrompt onSubmit={handleNameSubmit} />
+      </div>
+    );
+  }
 
   if (showHistory) {
     return (
@@ -23,7 +38,7 @@ export default function App() {
   if (session.phase === 'start') {
     return (
       <div className="app">
-        <StartScreen onStart={session.startSession} onHistory={() => setShowHistory(true)} />
+        <StartScreen onStart={session.startSession} onHistory={() => setShowHistory(true)} playerName={playerName} />
       </div>
     );
   }
@@ -35,6 +50,7 @@ export default function App() {
           sessionData={session.sessionData}
           onRestart={session.startSession}
           onHome={() => session.setPhase('start')}
+          playerName={playerName}
         />
       </div>
     );

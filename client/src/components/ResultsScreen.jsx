@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Confetti from './Confetti.jsx';
 
-export default function ResultsScreen({ sessionData, onRestart, onHome }) {
+export default function ResultsScreen({ sessionData, onRestart, onHome, playerName }) {
   const [encouragement, setEncouragement] = useState(null);
   const [saving, setSaving] = useState(true);
+  const savedRef = useRef(false);
 
   useEffect(() => {
+    if (savedRef.current) return;
+    savedRef.current = true;
+
     // Save session to server
     fetch('/api/sessions', {
       method: 'POST',
@@ -20,6 +24,7 @@ export default function ResultsScreen({ sessionData, onRestart, onHome }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        playerName: playerName || 'Student',
         accuracy: sessionData.accuracy,
         correctAnswers: sessionData.correctAnswers,
         totalQuestions: sessionData.totalQuestions,

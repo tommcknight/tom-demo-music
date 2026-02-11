@@ -46,7 +46,7 @@ app.get('/api/sessions/:id', (req, res) => {
 
 // AI encouragement via GitHub Models
 app.post('/api/encouragement', async (req, res) => {
-  const { accuracy, correctAnswers, totalQuestions, avgResponseTimeMs, streakMax } = req.body;
+  const { accuracy, correctAnswers, totalQuestions, avgResponseTimeMs, streakMax, playerName } = req.body;
   const token = process.env.GITHUB_TOKEN;
 
   if (!token) {
@@ -69,7 +69,7 @@ app.post('/api/encouragement', async (req, res) => {
           },
           {
             role: 'user',
-            content: `A student just finished a music note reading practice session. They got ${correctAnswers} out of ${totalQuestions} correct (${accuracy}% accuracy). Their average response time was ${(avgResponseTimeMs / 1000).toFixed(1)} seconds. Their best streak was ${streakMax} in a row. Give them a short, personalized encouragement message.`
+            content: `A student named ${playerName || 'a young musician'} just finished a music note reading practice session. They got ${correctAnswers} out of ${totalQuestions} correct (${accuracy}% accuracy). Their average response time was ${(avgResponseTimeMs / 1000).toFixed(1)} seconds. Their best streak was ${streakMax} in a row. Give them a short, personalized encouragement message using their name.`
           }
         ],
         max_tokens: 150,

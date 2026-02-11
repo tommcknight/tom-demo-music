@@ -5,6 +5,8 @@ export default function AnswerButtons({ onAnswer, revealed, correctAnswer, userA
     <div className="answer-buttons">
       {ALL_NOTE_NAMES.map(note => {
         let className = 'btn-note';
+        const hasAccidental = note.includes('♯') || note.includes('♭');
+        if (hasAccidental) className += ' accidental';
         if (revealed) {
           if (note === correctAnswer) className += ' correct';
           else if (note === userAnswer) className += ' incorrect';

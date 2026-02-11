@@ -20,6 +20,8 @@ export default function Flashcard({ note, clef, revealed, userAnswer }) {
     ? userAnswer === note.name ? 'var(--color-success)' : 'var(--color-error)'
     : 'var(--color-primary)';
 
+  const accidentalSymbol = note.accidental === 'sharp' ? '♯' : note.accidental === 'flat' ? '♭' : null;
+
   return (
     <div className="flashcard">
       <svg viewBox="0 0 160 110" width="320" height="220" aria-label={`Music note on ${clef} clef staff`}>
@@ -39,6 +41,17 @@ export default function Flashcard({ note, clef, revealed, userAnswer }) {
           />
         )}
 
+        {/* Accidental symbol */}
+        {accidentalSymbol && (
+          <text
+            x="80" y={noteY + 5}
+            fontSize="16" fontFamily="serif" fontWeight="bold"
+            fill={noteColor} textAnchor="middle"
+          >
+            {accidentalSymbol}
+          </text>
+        )}
+
         {/* Note head (filled oval) */}
         <ellipse
           cx="100" cy={noteY}
@@ -49,10 +62,8 @@ export default function Flashcard({ note, clef, revealed, userAnswer }) {
 
         {/* Stem */}
         {noteY >= 55 ? (
-          // Stem goes up for notes on/below middle line
           <line x1="107" y1={noteY} x2="107" y2={noteY - 30} stroke={noteColor} strokeWidth="1.5" />
         ) : (
-          // Stem goes down for notes above middle line
           <line x1="93" y1={noteY} x2="93" y2={noteY + 30} stroke={noteColor} strokeWidth="1.5" />
         )}
       </svg>

@@ -1,9 +1,9 @@
-export default function StartScreen({ onStart, onHistory }) {
+export default function StartScreen({ onStart, onHistory, playerName }) {
   return (
     <div className="start-screen">
       <div className="logo">🎵</div>
       <h1>Note Quest</h1>
-      <p className="subtitle">Learn to read music notes like a pro!</p>
+      <p className="subtitle">Hey {playerName}! Ready to practice? 🎹</p>
 
       <div className="start-info">
         <div className="info-item">📋 10 notes</div>

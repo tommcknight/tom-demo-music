@@ -44,15 +44,20 @@ const BASS_POSITIONS = {
 
 export function getStaffPosition(noteId, clef) {
   const positions = clef === 'treble' ? TREBLE_POSITIONS : BASS_POSITIONS;
-  return positions[noteId] ?? 55;
+  // Sharps/flats use the position of their base natural note
+  if (positions[noteId] != null) return positions[noteId];
+  // Strip accidental: 'C#4' -> 'C4', 'Eb4' -> 'E4', 'Ab4' -> 'A4', 'Bb4' -> 'B4'
+  const base = noteId.replace(/[#b]/, '');
+  return positions[base] ?? 55;
 }
 
 // Whether the note needs a ledger line
 export function needsLedgerLine(noteId, clef) {
+  const base = noteId.replace(/[#b]/, '');
   if (clef === 'treble') {
-    return noteId === 'C4' || noteId === 'A5';
+    return base === 'C4' || base === 'A5';
   }
-  return noteId === 'E2' || noteId === 'C4';
+  return base === 'E2' || base === 'C4';
 }
 
 // Y position of the ledger line
