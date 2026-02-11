@@ -40,32 +40,23 @@ export default function StartScreen({ onStart, onHistory, playerName }) {
 
         <div className="setting-row">
           <label>Include Sharps (♯)</label>
-          <button
-            className={`btn-toggle ${includeSharps ? 'on' : ''}`}
-            onClick={() => setIncludeSharps(!includeSharps)}
-          >
-            {includeSharps ? 'ON' : 'OFF'}
-          </button>
+          <div className={`toggle-switch ${includeSharps ? 'on' : ''}`} onClick={() => setIncludeSharps(!includeSharps)}>
+            <div className="toggle-knob" />
+          </div>
         </div>
 
         <div className="setting-row">
           <label>Include Flats (♭)</label>
-          <button
-            className={`btn-toggle ${includeFlats ? 'on' : ''}`}
-            onClick={() => setIncludeFlats(!includeFlats)}
-          >
-            {includeFlats ? 'ON' : 'OFF'}
-          </button>
+          <div className={`toggle-switch ${includeFlats ? 'on' : ''}`} onClick={() => setIncludeFlats(!includeFlats)}>
+            <div className="toggle-knob" />
+          </div>
         </div>
 
         <div className="setting-row">
-          <label>Answer Mode</label>
-          <button
-            className={`btn-toggle ${useKeyboard ? 'on' : ''}`}
-            onClick={() => setUseKeyboard(!useKeyboard)}
-          >
-            {useKeyboard ? '🎹 Piano' : 'ABC Buttons'}
-          </button>
+          <label>Piano Keys</label>
+          <div className={`toggle-switch ${useKeyboard ? 'on' : ''}`} onClick={() => setUseKeyboard(!useKeyboard)}>
+            <div className="toggle-knob" />
+          </div>
         </div>
       </div>
 
