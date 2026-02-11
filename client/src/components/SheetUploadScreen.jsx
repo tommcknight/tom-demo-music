@@ -31,7 +31,9 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
         body: JSON.stringify({ images }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error(text || `Server error (${res.status})`); }
       if (!res.ok) throw new Error(data.error || 'Transcription failed');
       if (!data.notes?.length) throw new Error('No notes found in the sheet music');
 
@@ -122,13 +124,13 @@ async function pdfToImages(file) {
   const pageCount = Math.min(pdf.numPages, 4);
   for (let i = 1; i <= pageCount; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 2.0 });
+    const viewport = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport }).promise;
-    images.push(canvas.toDataURL('image/png'));
+    images.push(canvas.toDataURL('image/jpeg', 0.8));
   }
 
   return images;

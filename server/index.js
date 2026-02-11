@@ -10,7 +10,7 @@ const PORT = 3002;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // Save a completed session
 app.post('/api/sessions', (req, res) => {
