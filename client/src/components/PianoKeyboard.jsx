@@ -17,11 +17,11 @@ import { playNote } from '../utils/audio.js';
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 const BLACK_NOTES = [
-  { note: 'C♯', sharpOf: 'C', position: 0.6 },
-  { note: 'E♭', flatOf: 'E',  position: 1.75 },
-  { note: 'F♯', sharpOf: 'F', position: 3.55 },
-  { note: 'A♭', flatOf: 'A',  position: 4.6 },
-  { note: 'B♭', flatOf: 'B',  position: 5.7 },
+  { note: 'C♯', position: 1.0 },   // centered on C|D boundary
+  { note: 'E♭', position: 2.0 },   // centered on D|E boundary
+  { note: 'F♯', position: 4.0 },   // centered on F|G boundary
+  { note: 'A♭', position: 5.0 },   // centered on G|A boundary
+  { note: 'B♭', position: 6.0 },   // centered on A|B boundary
 ];
 
 function buildKeys(startOctave, endOctave, includeSharps, includeFlats) {
