@@ -102,10 +102,21 @@ function getStaticEncouragement(accuracy) {
 }
 
 // Transcribe sheet music via Audiveris OMR (PDF/image → MusicXML)
+// Uses SSE to stream progress to the client
 app.post('/api/transcribe', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
+
+  // Set up SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const send = (type, data) => {
+    res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+  };
 
   const tmpDir = await mkdtemp(join(tmpdir(), 'nq-'));
   const ext = req.file.originalname.endsWith('.pdf') ? '.pdf' : '.png';
@@ -117,22 +128,46 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
     const { mkdirSync } = await import('fs');
     mkdirSync(outputDir, { recursive: true });
 
-    const audiverisPath = '/Applications/Audiveris.app/Contents/MacOS/Audiveris';
+    send('log', { message: '📄 File received, starting Audiveris OMR...' });
 
-    console.log('Running Audiveris on', inputPath);
-    const result = await new Promise((resolve, reject) => {
-      execFile(audiverisPath, ['-batch', '-export', '-output', outputDir, inputPath],
-        { timeout: 60000 },
-        (err, stdout, stderr) => {
-          if (err) {
-            console.error('Audiveris stderr:', stderr?.substring(0, 500));
-            reject(new Error(stderr || err.message));
-          } else {
-            resolve(stdout);
-          }
-        }
-      );
+    const audiverisPath = '/Applications/Audiveris.app/Contents/MacOS/Audiveris';
+    const { spawn } = await import('child_process');
+
+    const proc = spawn(audiverisPath, ['-batch', '-export', '-output', outputDir, inputPath], {
+      timeout: 120000,
     });
+
+    // Stream stderr (Audiveris logs to stderr)
+    proc.stderr.on('data', (chunk) => {
+      const lines = chunk.toString().split('\n').filter(l => l.trim());
+      for (const line of lines) {
+        // Parse Audiveris log lines for user-friendly messages
+        let msg = line.trim();
+        if (msg.includes('Extracting')) msg = '🔍 ' + msg.split('|').pop()?.trim();
+        else if (msg.includes('Reducing')) msg = '⚙️ ' + msg.split('|').pop()?.trim();
+        else if (msg.includes('processing')) msg = '🎵 ' + msg.split('|').pop()?.trim();
+        else if (msg.includes('Exporting')) msg = '📝 ' + msg.split('|').pop()?.trim();
+        else if (msg.includes('exported')) msg = '✅ ' + msg.split('|').pop()?.trim();
+        else if (msg.includes('%')) {
+          const pct = msg.match(/(\d+\.\d+%)/);
+          if (pct) msg = `⏳ Processing... ${pct[1]}`;
+          else continue;
+        }
+        else continue; // Skip noisy lines
+        send('log', { message: msg });
+      }
+    });
+
+    const exitCode = await new Promise((resolve, reject) => {
+      proc.on('close', resolve);
+      proc.on('error', reject);
+    });
+
+    if (exitCode !== 0) {
+      send('error', { message: 'Audiveris failed to process the file.' });
+      res.end();
+      return;
+    }
 
     // Find the .mxl output file
     const { readdirSync, readFileSync } = await import('fs');
@@ -140,17 +175,21 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
     const mxlFile = files.find(f => f.endsWith('.mxl'));
 
     if (!mxlFile) {
-      return res.status(422).json({ error: 'Audiveris could not read the sheet music. Try a clearer image.' });
+      send('error', { message: 'Could not read the sheet music. Try a clearer image.' });
+      res.end();
+      return;
     }
 
-    // Read the .mxl and send as base64
+    send('log', { message: '🎹 Loading into player...' });
+
     const mxlData = readFileSync(join(outputDir, mxlFile));
-    res.json({ mxl: mxlData.toString('base64'), filename: mxlFile });
+    send('done', { mxl: mxlData.toString('base64'), filename: mxlFile });
+    res.end();
   } catch (err) {
     console.error('Transcription error:', err.message);
-    res.status(500).json({ error: 'Transcription failed: ' + err.message });
+    send('error', { message: 'Transcription failed: ' + err.message });
+    res.end();
   } finally {
-    // Clean up temp files
     const { rmSync } = await import('fs');
     rmSync(tmpDir, { recursive: true, force: true });
   }

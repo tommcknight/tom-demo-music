@@ -816,6 +816,27 @@ button:active {
   margin-top: 12px;
 }
 
+.sp-log {
+  margin-top: 12px;
+  text-align: left;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #1e1b4b;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+.sp-log-line {
+  color: #a5b4fc;
+  padding: 2px 0;
+  line-height: 1.5;
+}
+.sp-log-line:last-child {
+  color: #e0e7ff;
+  font-weight: 600;
+}
+
 .spinner {
   width: 32px;
   height: 32px;

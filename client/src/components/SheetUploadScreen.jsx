@@ -4,15 +4,13 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fileName, setFileName] = useState('');
+  const [logs, setLogs] = useState([]);
   const fileRef = useRef(null);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp',
-      'application/vnd.recordare.musicxml+xml', 'application/xml', 'text/xml'];
-    const validExts = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.xml', '.musicxml', '.mxl'];
     const ext = '.' + file.name.split('.').pop().toLowerCase();
 
     // If it's already a MusicXML file, pass it directly
@@ -23,6 +21,7 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
       return;
     }
 
+    const validExts = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
     if (!validExts.includes(ext)) {
       setError('Please upload a PDF, image, or MusicXML file');
       return;
@@ -30,6 +29,7 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
 
     setFileName(file.name);
     setError(null);
+    setLogs([]);
     setLoading(true);
 
     try {
@@ -41,13 +41,34 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
         body: formData,
       });
 
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { throw new Error(text || `Server error (${res.status})`); }
-      if (!res.ok) throw new Error(data.error || 'Transcription failed');
-      if (!data.mxl) throw new Error('No music data returned');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      onTranscribed(data);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = JSON.parse(line.slice(6));
+
+          if (data.type === 'log') {
+            setLogs(prev => [...prev, data.message]);
+          } else if (data.type === 'done') {
+            onTranscribed(data);
+            return;
+          } else if (data.type === 'error') {
+            throw new Error(data.message);
+          }
+        }
+      }
+
+      throw new Error('Connection ended without result');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -91,7 +112,11 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
         {loading && (
           <div className="sp-loading">
             <div className="spinner" />
-            <p>Reading sheet music with Audiveris... this may take a moment.</p>
+            <div className="sp-log">
+              {logs.map((msg, i) => (
+                <div key={i} className="sp-log-line">{msg}</div>
+              ))}
+            </div>
           </div>
         )}
 
