@@ -61,7 +61,12 @@ export default function App() {
   // Playing phase
   return (
     <div className="app">
-      <ProgressBar current={session.currentIndex + 1} total={session.totalQuestions} />
+      <div className="session-top-bar">
+        <button className="btn-home" onClick={() => session.setPhase('start')} title="Back to Home">
+          🏠
+        </button>
+        <ProgressBar current={session.currentIndex + 1} total={session.totalQuestions} />
+      </div>
 
       <div className="clef-label">{session.currentNote.clef === 'treble' ? '𝄞 Treble' : '𝄢 Bass'} Clef</div>
 
