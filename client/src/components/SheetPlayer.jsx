@@ -7,17 +7,27 @@ export default function SheetPlayer({ sheetData, onBack }) {
   const osmdRef = useRef(null);
   const pianoRef = useRef(null);
   const cursorTimerRef = useRef(null);
+  const logRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [tempo, setTempo] = useState(120); // BPM
   const [error, setError] = useState(null);
+  const [logs, setLogs] = useState(sheetData.logs || []);
+
+  const addLog = (msg) => setLogs(prev => [...prev, msg]);
+
+  // Auto-scroll log
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logs]);
 
   // Initialize OSMD and load the MusicXML
   useEffect(() => {
-    if (!containerRef.current || !sheetData?.mxl) return;
+    if (!containerRef.current || (!sheetData?.xml && !sheetData?.mxl)) return;
 
     const initOSMD = async () => {
       try {
+        addLog('🎼 Rendering sheet music...');
         const osmd = new OpenSheetMusicDisplay(containerRef.current, {
           autoResize: true,
           drawTitle: true,
@@ -41,14 +51,17 @@ export default function SheetPlayer({ sheetData, onBack }) {
         }
 
         osmd.render();
+        addLog('✅ Sheet music rendered!');
         osmd.cursor.show();
         osmd.cursor.reset();
-        setReady(true);
 
         // Load piano SoundFont
+        addLog('🎹 Loading piano sounds...');
         const ac = new (window.AudioContext || window.webkitAudioContext)();
         const piano = await Soundfont.instrument(ac, 'acoustic_grand_piano');
         pianoRef.current = { ac, piano };
+        addLog('✅ Piano ready! Press Play to start.');
+        setReady(true);
       } catch (err) {
         console.error('OSMD init error:', err);
         setError('Failed to display sheet music: ' + err.message);
@@ -175,7 +188,11 @@ export default function SheetPlayer({ sheetData, onBack }) {
       {!ready && !error && (
         <div className="sp-loading">
           <div className="spinner" />
-          <p>Loading sheet music and piano sounds...</p>
+          <div className="sp-log" ref={logRef}>
+            {logs.map((msg, i) => (
+              <div key={i} className="sp-log-line">{msg}</div>
+            ))}
+          </div>
         </div>
       )}
     </div>

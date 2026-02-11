@@ -65,6 +65,7 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
           if (data.type === 'log') {
             setLogs(prev => [...prev, data.message]);
           } else if (data.type === 'done') {
+            setLogs(prev => { data.logs = prev; return prev; });
             onTranscribed(data);
             return;
           } else if (data.type === 'error') {
