@@ -111,7 +111,8 @@ function fileToDataUrl(file) {
 
 async function pdfToImages(file) {
   const pdfjsLib = await import('pdfjs-dist');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.href;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
