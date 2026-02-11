@@ -137,26 +137,21 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
       timeout: 120000,
     });
 
-    // Stream stderr (Audiveris logs to stderr)
-    proc.stderr.on('data', (chunk) => {
+    // Stream all output to client
+    const streamLines = (chunk) => {
       const lines = chunk.toString().split('\n').filter(l => l.trim());
       for (const line of lines) {
-        // Parse Audiveris log lines for user-friendly messages
         let msg = line.trim();
-        if (msg.includes('Extracting')) msg = '🔍 ' + msg.split('|').pop()?.trim();
-        else if (msg.includes('Reducing')) msg = '⚙️ ' + msg.split('|').pop()?.trim();
-        else if (msg.includes('processing')) msg = '🎵 ' + msg.split('|').pop()?.trim();
-        else if (msg.includes('Exporting')) msg = '📝 ' + msg.split('|').pop()?.trim();
-        else if (msg.includes('exported')) msg = '✅ ' + msg.split('|').pop()?.trim();
-        else if (msg.includes('%')) {
-          const pct = msg.match(/(\d+\.\d+%)/);
-          if (pct) msg = `⏳ Processing... ${pct[1]}`;
-          else continue;
-        }
-        else continue; // Skip noisy lines
-        send('log', { message: msg });
+        // Extract the useful part after the pipe separator if present
+        const pipeIdx = msg.lastIndexOf('|');
+        const content = pipeIdx >= 0 ? msg.substring(pipeIdx + 1).trim() : msg;
+        if (!content) continue;
+        send('log', { message: content });
       }
-    });
+    };
+
+    proc.stdout.on('data', streamLines);
+    proc.stderr.on('data', streamLines);
 
     const exitCode = await new Promise((resolve, reject) => {
       proc.on('close', resolve);

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function SheetUploadScreen({ onTranscribed, onBack }) {
   const [loading, setLoading] = useState(false);
@@ -6,6 +6,11 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
   const [fileName, setFileName] = useState('');
   const [logs, setLogs] = useState([]);
   const fileRef = useRef(null);
+  const logRef = useRef(null);
+
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logs]);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -112,7 +117,7 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
         {loading && (
           <div className="sp-loading">
             <div className="spinner" />
-            <div className="sp-log">
+            <div className="sp-log" ref={logRef}>
               {logs.map((msg, i) => (
                 <div key={i} className="sp-log-line">{msg}</div>
               ))}
