@@ -23,6 +23,7 @@ export default function useSession() {
       includeSharps: opts.includeSharps ?? false,
       includeFlats: opts.includeFlats ?? false,
       questionCount: opts.questionCount || 10,
+      useKeyboard: opts.useKeyboard ?? false,
     };
     setSettings(merged);
     const count = merged.questionCount;

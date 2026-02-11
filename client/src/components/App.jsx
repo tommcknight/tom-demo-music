@@ -2,6 +2,7 @@ import useSession from '../hooks/useSession.js';
 import StartScreen from './StartScreen.jsx';
 import Flashcard from './Flashcard.jsx';
 import AnswerButtons from './AnswerButtons.jsx';
+import PianoKeyboard from './PianoKeyboard.jsx';
 import ProgressBar from './ProgressBar.jsx';
 import Feedback from './Feedback.jsx';
 import ResultsScreen from './ResultsScreen.jsx';
@@ -76,14 +77,25 @@ export default function App() {
         <PlayNoteButton noteId={session.currentNote.id} />
       </div>
 
-      <AnswerButtons
-        onAnswer={session.submitAnswer}
-        revealed={session.revealed}
-        correctAnswer={session.currentNote?.name}
-        userAnswer={session.userAnswer}
-        includeSharps={session.settings?.includeSharps}
-        includeFlats={session.settings?.includeFlats}
-      />
+      {session.settings?.useKeyboard ? (
+        <PianoKeyboard
+          onAnswer={session.submitAnswer}
+          revealed={session.revealed}
+          correctAnswer={session.currentNote?.name}
+          userAnswer={session.userAnswer}
+          includeSharps={session.settings?.includeSharps}
+          includeFlats={session.settings?.includeFlats}
+        />
+      ) : (
+        <AnswerButtons
+          onAnswer={session.submitAnswer}
+          revealed={session.revealed}
+          correctAnswer={session.currentNote?.name}
+          userAnswer={session.userAnswer}
+          includeSharps={session.settings?.includeSharps}
+          includeFlats={session.settings?.includeFlats}
+        />
+      )}
 
       {session.revealed && (
         <Feedback

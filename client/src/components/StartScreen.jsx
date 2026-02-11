@@ -4,12 +4,14 @@ export default function StartScreen({ onStart, onHistory, playerName }) {
   const [includeSharps, setIncludeSharps] = useState(() => localStorage.getItem('nq_sharps') === 'true');
   const [includeFlats, setIncludeFlats] = useState(() => localStorage.getItem('nq_flats') === 'true');
   const [questionCount, setQuestionCount] = useState(() => Number(localStorage.getItem('nq_count')) || 10);
+  const [useKeyboard, setUseKeyboard] = useState(() => localStorage.getItem('nq_keyboard') === 'true');
 
   const handleStart = () => {
     localStorage.setItem('nq_sharps', includeSharps);
     localStorage.setItem('nq_flats', includeFlats);
     localStorage.setItem('nq_count', questionCount);
-    onStart({ includeSharps, includeFlats, questionCount });
+    localStorage.setItem('nq_keyboard', useKeyboard);
+    onStart({ includeSharps, includeFlats, questionCount, useKeyboard });
   };
 
   return (
@@ -53,6 +55,16 @@ export default function StartScreen({ onStart, onHistory, playerName }) {
             onClick={() => setIncludeFlats(!includeFlats)}
           >
             {includeFlats ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        <div className="setting-row">
+          <label>Answer Mode</label>
+          <button
+            className={`btn-toggle ${useKeyboard ? 'on' : ''}`}
+            onClick={() => setUseKeyboard(!useKeyboard)}
+          >
+            {useKeyboard ? '🎹 Piano' : 'ABC Buttons'}
           </button>
         </div>
       </div>
