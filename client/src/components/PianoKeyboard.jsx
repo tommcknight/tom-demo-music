@@ -59,14 +59,15 @@ function buildKeys(startOctave, endOctave, includeSharps, includeFlats) {
   return { whites, blacks, totalWhite: whiteIdx };
 }
 
-export default function PianoKeyboard({ onAnswer, revealed, correctAnswer, userAnswer, includeSharps, includeFlats }) {
+export default function PianoKeyboard({ onAnswer, revealed, correctAnswer, userAnswer, includeSharps, includeFlats, currentNoteId }) {
   const { whites, blacks, totalWhite } = buildKeys(3, 5, includeSharps, includeFlats);
   const whiteW = 100 / totalWhite;
   const blackW = whiteW * 0.58;
 
   const handleClick = (key) => {
     if (revealed || key.enabled === false) return;
-    playNote(key.noteId);
+    // Play the actual note's pitch (correct octave), not the piano key's octave
+    playNote(currentNoteId);
     onAnswer(key.name);
   };
 

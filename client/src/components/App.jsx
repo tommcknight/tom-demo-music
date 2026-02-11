@@ -90,6 +90,7 @@ export default function App() {
           userAnswer={session.userAnswer}
           includeSharps={session.settings?.includeSharps}
           includeFlats={session.settings?.includeFlats}
+          currentNoteId={session.currentNote?.id}
         />
       ) : (
         <AnswerButtons
