@@ -1,14 +1,16 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import { saveSession, getSessions, getSession } from './db.js';
 import ModelClient from '@azure-rest/ai-inference';
 import { AzureKeyCredential } from '@azure/core-auth';
 
 const app = express();
 const PORT = 3002;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Save a completed session
 app.post('/api/sessions', (req, res) => {
@@ -91,6 +93,80 @@ function getStaticEncouragement(accuracy) {
   if (accuracy >= 60) return "👍 Good effort! You're getting better every time. Keep practicing and you'll be a pro!";
   return "💪 Every practice session makes you stronger! Keep at it and you'll be reading notes like a pro in no time!";
 }
+
+// Transcribe sheet music images via GPT-4o vision
+app.post('/api/transcribe', async (req, res) => {
+  const { images } = req.body; // array of base64 data URLs
+  const token = process.env.GITHUB_TOKEN;
+
+  if (!token) {
+    return res.status(400).json({ error: 'GitHub token not available for AI transcription' });
+  }
+
+  if (!images || !images.length) {
+    return res.status(400).json({ error: 'No images provided' });
+  }
+
+  try {
+    const client = ModelClient(
+      'https://models.inference.ai.azure.com',
+      new AzureKeyCredential(token)
+    );
+
+    const imageMessages = images.map(img => ({
+      type: 'image_url',
+      image_url: { url: img, detail: 'high' }
+    }));
+
+    const response = await client.path('/chat/completions').post({
+      body: {
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert music transcription assistant. Analyze sheet music images and extract every note in order from left to right, top staff to bottom staff.
+
+Return ONLY a valid JSON array of note objects. Each note object must have:
+- "note": the note name with octave (e.g. "C4", "F#3", "Eb5")
+- "duration": duration type ("whole", "half", "quarter", "eighth", "sixteenth")
+- "clef": "treble" or "bass"
+- "isRest": true if it's a rest (omit "note" for rests)
+
+Use standard scientific pitch notation (C4 = middle C).
+For sharps use # (e.g. "F#4"), for flats use b (e.g. "Eb4").
+If there are two staves (grand staff), list treble clef notes first for each beat, then bass.
+For simplicity, focus on the melody (top voice) if there are chords.
+
+Example output:
+[{"note":"C4","duration":"quarter","clef":"treble"},{"note":"D4","duration":"quarter","clef":"treble"},{"note":"E4","duration":"half","clef":"treble"}]`
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Please transcribe all notes from this sheet music in order:' },
+              ...imageMessages
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1,
+      }
+    });
+
+    const content = response.body.choices?.[0]?.message?.content || '';
+    // Extract JSON from the response (might be wrapped in markdown code block)
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return res.status(422).json({ error: 'Could not parse notes from AI response', raw: content });
+    }
+
+    const notes = JSON.parse(jsonMatch[0]);
+    res.json({ notes });
+  } catch (err) {
+    console.error('Transcription error:', err.message);
+    res.status(500).json({ error: 'Transcription failed: ' + err.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`🎵 Note Quest API running on http://localhost:${PORT}`);

@@ -712,3 +712,120 @@ button:active {
 
 .pk.pk-dim { opacity: 0.45; }
 .pk.pk-inert { opacity: 0.55; cursor: default; }
+
+/* Sheet Music Player */
+.sheet-player {
+  width: 100%;
+  text-align: center;
+}
+
+.sp-staff-area {
+  margin: 16px 0;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-rest-display {
+  font-size: 28px;
+  color: var(--color-text-muted);
+  padding: 30px;
+}
+
+.sp-note-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+.sp-current-note {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.sp-progress {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.sp-track {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  max-height: 60px;
+  overflow-y: auto;
+}
+
+.sp-track-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  transition: all 0.2s;
+}
+.sp-track-dot.played { background: var(--color-primary-light); }
+.sp-track-dot.active { background: var(--color-primary); transform: scale(1.5); }
+.sp-track-dot.rest { border-radius: 2px; }
+
+.sp-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 16px 0 8px;
+}
+
+.sp-tempo {
+  margin: 12px 0;
+}
+.sp-tempo label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+.sp-tempo input[type="range"] {
+  width: 200px;
+  accent-color: var(--color-primary);
+}
+
+.sp-loading {
+  text-align: center;
+  padding: 20px 0;
+  color: var(--color-text-muted);
+}
+.sp-loading p {
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.sp-error {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fef2f2;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 14px;
+}
+.sp-error button { margin-top: 8px; }

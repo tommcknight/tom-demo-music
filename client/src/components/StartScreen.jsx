@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function StartScreen({ onStart, onHistory, playerName }) {
+export default function StartScreen({ onStart, onHistory, onSheetMusic, playerName }) {
   const [includeSharps, setIncludeSharps] = useState(() => localStorage.getItem('nq_sharps') === 'true');
   const [includeFlats, setIncludeFlats] = useState(() => localStorage.getItem('nq_flats') === 'true');
   const [questionCount, setQuestionCount] = useState(() => Number(localStorage.getItem('nq_count')) || 10);
@@ -66,6 +66,10 @@ export default function StartScreen({ onStart, onHistory, playerName }) {
 
       <button className="btn-secondary" onClick={onHistory}>
         📊 View History
+      </button>
+
+      <button className="btn-secondary" onClick={onSheetMusic}>
+        🎼 Sheet Music Player
       </button>
     </div>
   );

@@ -9,11 +9,15 @@ import ResultsScreen from './ResultsScreen.jsx';
 import HistoryScreen from './HistoryScreen.jsx';
 import NamePrompt from './NamePrompt.jsx';
 import PlayNoteButton from './PlayNoteButton.jsx';
+import SheetUploadScreen from './SheetUploadScreen.jsx';
+import SheetPlayer from './SheetPlayer.jsx';
 import { useState } from 'react';
 
 export default function App() {
   const session = useSession();
   const [showHistory, setShowHistory] = useState(false);
+  const [showSheetUpload, setShowSheetUpload] = useState(false);
+  const [sheetNotes, setSheetNotes] = useState(null);
   const [playerName, setPlayerName] = useState(() => localStorage.getItem('notequest_name') || '');
 
   const handleNameSubmit = (name) => {
@@ -37,10 +41,34 @@ export default function App() {
     );
   }
 
+  if (sheetNotes) {
+    return (
+      <div className="app">
+        <SheetPlayer notes={sheetNotes} onBack={() => setSheetNotes(null)} />
+      </div>
+    );
+  }
+
+  if (showSheetUpload) {
+    return (
+      <div className="app">
+        <SheetUploadScreen
+          onTranscribed={(notes) => { setSheetNotes(notes); setShowSheetUpload(false); }}
+          onBack={() => setShowSheetUpload(false)}
+        />
+      </div>
+    );
+  }
+
   if (session.phase === 'start') {
     return (
       <div className="app">
-        <StartScreen onStart={session.startSession} onHistory={() => setShowHistory(true)} playerName={playerName} />
+        <StartScreen
+          onStart={session.startSession}
+          onHistory={() => setShowHistory(true)}
+          onSheetMusic={() => setShowSheetUpload(true)}
+          playerName={playerName}
+        />
       </div>
     );
   }
