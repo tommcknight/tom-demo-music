@@ -26,24 +26,18 @@ export default function SheetPlayer({ sheetData, onBack }) {
         });
         osmdRef.current = osmd;
 
-        // Decode the base64 .mxl data
-        const binaryStr = atob(sheetData.mxl);
-        const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) {
-          bytes[i] = binaryStr.charCodeAt(i);
-        }
-
-        // Check if it's a zip (.mxl) or raw XML
-        const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
-        let xmlContent;
-
-        if (isZip) {
-          // Use JSZip-like approach — OSMD can load ArrayBuffer directly
-          await osmd.load(bytes.buffer);
-        } else {
-          // Raw XML
-          xmlContent = new TextDecoder().decode(bytes);
-          await osmd.load(xmlContent);
+        // Load the MusicXML string
+        if (sheetData.xml) {
+          await osmd.load(sheetData.xml);
+        } else if (sheetData.mxl) {
+          // Fallback for direct .mxl upload — decode base64 to string
+          const binaryStr = atob(sheetData.mxl);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          const text = new TextDecoder().decode(bytes);
+          await osmd.load(text);
         }
 
         osmd.render();

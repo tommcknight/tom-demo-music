@@ -177,8 +177,20 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
 
     send('log', { message: '🎹 Loading into player...' });
 
-    const mxlData = readFileSync(join(outputDir, mxlFile));
-    send('done', { mxl: mxlData.toString('base64'), filename: mxlFile });
+    // .mxl is a zip containing the .xml — extract it
+    const { createUnzip } = await import('zlib');
+    const AdmZip = (await import('adm-zip')).default;
+    const zip = new AdmZip(join(outputDir, mxlFile));
+    const xmlEntry = zip.getEntries().find(e => e.entryName.endsWith('.xml') && !e.entryName.includes('META-INF'));
+    
+    if (!xmlEntry) {
+      send('error', { message: 'MXL archive missing XML content.' });
+      res.end();
+      return;
+    }
+
+    const xmlContent = xmlEntry.getData().toString('utf-8');
+    send('done', { xml: xmlContent, filename: mxlFile });
     res.end();
   } catch (err) {
     console.error('Transcription error:', err.message);
