@@ -42,8 +42,7 @@ function buildKeys(startOctave, endOctave, includeSharps, includeFlats) {
     for (const bk of BLACK_NOTES) {
       const isSharp = bk.note.includes('♯');
       const isFlat = bk.note.includes('♭');
-      if (isSharp && !includeSharps) continue;
-      if (isFlat && !includeFlats) continue;
+      const enabled = (isSharp && includeSharps) || (isFlat && includeFlats);
 
       const noteIdBase = bk.note.replace('♯', '#').replace('♭', 'b');
       const noteId = `${noteIdBase}${oct}`;
@@ -52,6 +51,7 @@ function buildKeys(startOctave, endOctave, includeSharps, includeFlats) {
         noteId,
         type: 'black',
         pos: octOffset + bk.position,
+        enabled,
       });
     }
   }
@@ -65,7 +65,7 @@ export default function PianoKeyboard({ onAnswer, revealed, correctAnswer, userA
   const blackW = whiteW * 0.58;
 
   const handleClick = (key) => {
-    if (revealed) return;
+    if (revealed || key.enabled === false) return;
     playNote(key.noteId);
     onAnswer(key.name);
   };
@@ -97,10 +97,10 @@ export default function PianoKeyboard({ onAnswer, revealed, correctAnswer, userA
         {blacks.map((k) => (
           <button
             key={k.noteId}
-            className={getKeyClass(k)}
+            className={`${getKeyClass(k)}${!k.enabled ? ' pk-inert' : ''}`}
             style={{ left: `${k.pos * whiteW - blackW / 2}%`, width: `${blackW}%` }}
             onClick={() => handleClick(k)}
-            disabled={revealed}
+            disabled={revealed || !k.enabled}
           />
         ))}
       </div>

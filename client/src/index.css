@@ -711,3 +711,4 @@ button:active {
 }
 
 .pk.pk-dim { opacity: 0.45; }
+.pk.pk-inert { opacity: 0.55; cursor: default; }
