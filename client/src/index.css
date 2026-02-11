@@ -727,6 +727,16 @@ button:active {
   justify-content: center;
 }
 
+.sp-osmd-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 12px 0;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
 .sp-rest-display {
   font-size: 28px;
   color: var(--color-text-muted);

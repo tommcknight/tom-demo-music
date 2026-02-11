@@ -1,70 +1,135 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Flashcard from './Flashcard.jsx';
-import { playNote } from '../utils/audio.js';
+import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
+import Soundfont from 'soundfont-player';
 
-const DURATION_MS = { whole: 2000, half: 1000, quarter: 500, eighth: 250, sixteenth: 125 };
-
-export default function SheetPlayer({ notes, onBack }) {
-  const [currentIdx, setCurrentIdx] = useState(-1);
+export default function SheetPlayer({ sheetData, onBack }) {
+  const containerRef = useRef(null);
+  const osmdRef = useRef(null);
+  const pianoRef = useRef(null);
+  const cursorTimerRef = useRef(null);
+  const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [tempo, setTempo] = useState(100); // BPM percentage (100 = normal)
-  const timerRef = useRef(null);
-  const idxRef = useRef(-1);
+  const [tempo, setTempo] = useState(120); // BPM
+  const [error, setError] = useState(null);
 
-  const tempoMultiplier = 100 / tempo;
+  // Initialize OSMD and load the MusicXML
+  useEffect(() => {
+    if (!containerRef.current || !sheetData?.mxl) return;
+
+    const initOSMD = async () => {
+      try {
+        const osmd = new OpenSheetMusicDisplay(containerRef.current, {
+          autoResize: true,
+          drawTitle: true,
+          drawComposer: true,
+          followCursor: true,
+        });
+        osmdRef.current = osmd;
+
+        // Decode the base64 .mxl data
+        const binaryStr = atob(sheetData.mxl);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+
+        // Check if it's a zip (.mxl) or raw XML
+        const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
+        let xmlContent;
+
+        if (isZip) {
+          // Use JSZip-like approach — OSMD can load ArrayBuffer directly
+          await osmd.load(bytes.buffer);
+        } else {
+          // Raw XML
+          xmlContent = new TextDecoder().decode(bytes);
+          await osmd.load(xmlContent);
+        }
+
+        osmd.render();
+        osmd.cursor.show();
+        osmd.cursor.reset();
+        setReady(true);
+
+        // Load piano SoundFont
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const piano = await Soundfont.instrument(ac, 'acoustic_grand_piano');
+        pianoRef.current = { ac, piano };
+      } catch (err) {
+        console.error('OSMD init error:', err);
+        setError('Failed to display sheet music: ' + err.message);
+      }
+    };
+
+    initOSMD();
+
+    return () => {
+      if (cursorTimerRef.current) clearTimeout(cursorTimerRef.current);
+    };
+  }, [sheetData]);
 
   const stopPlayback = useCallback(() => {
     setPlaying(false);
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    if (cursorTimerRef.current) {
+      clearTimeout(cursorTimerRef.current);
+      cursorTimerRef.current = null;
     }
   }, []);
 
-  const playNext = useCallback(() => {
-    const nextIdx = idxRef.current + 1;
-    if (nextIdx >= notes.length) {
+  const playStep = useCallback(() => {
+    const osmd = osmdRef.current;
+    const inst = pianoRef.current;
+    if (!osmd || !inst || !osmd.cursor.iterator.currentMeasure) {
       stopPlayback();
       return;
     }
 
-    idxRef.current = nextIdx;
-    setCurrentIdx(nextIdx);
-
-    const note = notes[nextIdx];
-    if (!note.isRest && note.note) {
-      playNote(note.note, (DURATION_MS[note.duration] || 500) * tempoMultiplier / 1000);
+    if (osmd.cursor.iterator.endReached) {
+      stopPlayback();
+      return;
     }
 
-    const ms = (DURATION_MS[note.duration] || 500) * tempoMultiplier;
-    timerRef.current = setTimeout(playNext, ms);
-  }, [notes, tempoMultiplier, stopPlayback]);
+    // Get notes under the cursor
+    const voices = osmd.cursor.VoicesUnderCursor();
+    for (const entry of voices) {
+      for (const note of entry.Notes) {
+        if (note.isRest()) continue;
+        const midiNote = note.halfTone + 12; // OSMD uses halfTone from C-1
+        const duration = (note.Length.RealValue * 4 * 60) / tempo;
+        inst.piano.play(midiNote, inst.ac.currentTime, { duration: Math.max(0.1, duration) });
+      }
+    }
+
+    // Calculate duration of current beat
+    const beatDuration = (60 / tempo) * 1000; // ms per quarter note
+
+    osmd.cursor.next();
+
+    cursorTimerRef.current = setTimeout(playStep, beatDuration);
+  }, [tempo, stopPlayback]);
 
   const startPlayback = useCallback(() => {
-    idxRef.current = -1;
+    const osmd = osmdRef.current;
+    if (!osmd) return;
+    osmd.cursor.reset();
+    osmd.cursor.show();
     setPlaying(true);
-    playNext();
-  }, [playNext]);
+    playStep();
+  }, [playStep]);
 
   const resumePlayback = useCallback(() => {
     setPlaying(true);
-    playNext();
-  }, [playNext]);
+    playStep();
+  }, [playStep]);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const currentNote = notes[currentIdx];
-  // Build a display note object compatible with Flashcard
-  const displayNote = currentNote && !currentNote.isRest ? {
-    id: currentNote.note,
-    name: currentNote.note.replace(/[0-9]/g, '').replace('#', '♯').replace('b', '♭'),
-    clef: currentNote.clef || 'treble',
-    accidental: currentNote.note.includes('#') ? 'sharp' : currentNote.note.includes('b') && currentNote.note !== 'B' ? 'flat' : null,
-  } : null;
+  const restart = useCallback(() => {
+    stopPlayback();
+    const osmd = osmdRef.current;
+    if (osmd) {
+      osmd.cursor.reset();
+      osmd.cursor.show();
+    }
+  }, [stopPlayback]);
 
   return (
     <div className="sheet-player">
@@ -75,69 +140,50 @@ export default function SheetPlayer({ notes, onBack }) {
         <h2 style={{ margin: 0, flex: 1, textAlign: 'center', fontSize: '18px' }}>🎶 Sheet Music Player</h2>
       </div>
 
-      <div className="sp-staff-area">
-        {displayNote ? (
-          <Flashcard
-            note={displayNote}
-            clef={displayNote.clef}
-            revealed={false}
-            userAnswer={null}
-          />
-        ) : (
-          <div className="sp-rest-display">
-            {currentIdx >= 0 ? '𝄾 Rest' : 'Ready to play'}
+      {error && (
+        <div className="sp-error">
+          <p>❌ {error}</p>
+        </div>
+      )}
+
+      <div ref={containerRef} className="sp-osmd-container" />
+
+      {ready && (
+        <>
+          <div className="sp-controls">
+            {!playing ? (
+              <button className="btn-primary" onClick={startPlayback}>
+                ▶ Play
+              </button>
+            ) : (
+              <button className="btn-secondary" onClick={stopPlayback}>
+                ⏸ Pause
+              </button>
+            )}
+            <button className="btn-secondary" onClick={restart}>
+              ⏮ Restart
+            </button>
           </div>
-        )}
-      </div>
 
-      <div className="sp-note-info">
-        {currentNote && !currentNote.isRest && (
-          <span className="sp-current-note">{displayNote?.name} ({currentNote.duration})</span>
-        )}
-        {currentNote?.isRest && (
-          <span className="sp-current-note">Rest ({currentNote.duration})</span>
-        )}
-        <span className="sp-progress">{Math.max(0, currentIdx + 1)} / {notes.length}</span>
-      </div>
+          <div className="sp-tempo">
+            <label>Tempo: {tempo} BPM</label>
+            <input
+              type="range"
+              min="40"
+              max="240"
+              value={tempo}
+              onChange={(e) => setTempo(Number(e.target.value))}
+            />
+          </div>
+        </>
+      )}
 
-      {/* Progress track */}
-      <div className="sp-track">
-        {notes.map((n, i) => (
-          <div
-            key={i}
-            className={`sp-track-dot ${i === currentIdx ? 'active' : i < currentIdx ? 'played' : ''} ${n.isRest ? 'rest' : ''}`}
-          />
-        ))}
-      </div>
-
-      {/* Controls */}
-      <div className="sp-controls">
-        {!playing && currentIdx < notes.length - 1 && (
-          <button className="btn-primary" onClick={currentIdx < 0 ? startPlayback : resumePlayback}>
-            {currentIdx < 0 ? '▶ Play' : '▶ Resume'}
-          </button>
-        )}
-        {playing && (
-          <button className="btn-secondary" onClick={stopPlayback}>
-            ⏸ Pause
-          </button>
-        )}
-        <button className="btn-secondary" onClick={() => { stopPlayback(); idxRef.current = -1; setCurrentIdx(-1); }}>
-          ⏮ Restart
-        </button>
-      </div>
-
-      {/* Tempo slider */}
-      <div className="sp-tempo">
-        <label>Tempo: {tempo}%</label>
-        <input
-          type="range"
-          min="25"
-          max="200"
-          value={tempo}
-          onChange={(e) => setTempo(Number(e.target.value))}
-        />
-      </div>
+      {!ready && !error && (
+        <div className="sp-loading">
+          <div className="spinner" />
+          <p>Loading sheet music and piano sounds...</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -44,7 +44,7 @@ export default function App() {
   if (sheetNotes) {
     return (
       <div className="app">
-        <SheetPlayer notes={sheetNotes} onBack={() => setSheetNotes(null)} />
+        <SheetPlayer sheetData={sheetNotes} onBack={() => setSheetNotes(null)} />
       </div>
     );
   }

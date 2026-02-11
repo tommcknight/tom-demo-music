@@ -1,9 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import { execFile } from 'child_process';
+import { writeFile, unlink, mkdtemp } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { saveSession, getSessions, getSession } from './db.js';
 import ModelClient from '@azure-rest/ai-inference';
 import { AzureKeyCredential } from '@azure/core-auth';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = 3002;
@@ -94,84 +101,58 @@ function getStaticEncouragement(accuracy) {
   return "💪 Every practice session makes you stronger! Keep at it and you'll be reading notes like a pro in no time!";
 }
 
-// Transcribe sheet music images via GPT-4o vision
-app.post('/api/transcribe', async (req, res) => {
-  const { images } = req.body; // array of base64 data URLs
-  const token = process.env.GITHUB_TOKEN;
-
-  if (!token) {
-    return res.status(400).json({ error: 'GitHub token not available for AI transcription' });
+// Transcribe sheet music via Audiveris OMR (PDF/image → MusicXML)
+app.post('/api/transcribe', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  if (!images || !images.length) {
-    return res.status(400).json({ error: 'No images provided' });
-  }
+  const tmpDir = await mkdtemp(join(tmpdir(), 'nq-'));
+  const ext = req.file.originalname.endsWith('.pdf') ? '.pdf' : '.png';
+  const inputPath = join(tmpDir, `input${ext}`);
+  const outputDir = join(tmpDir, 'out');
 
   try {
-    const client = ModelClient(
-      'https://models.inference.ai.azure.com',
-      new AzureKeyCredential(token)
-    );
+    await writeFile(inputPath, req.file.buffer);
+    const { mkdirSync } = await import('fs');
+    mkdirSync(outputDir, { recursive: true });
 
-    const imageMessages = images.map(img => ({
-      type: 'image_url',
-      image_url: { url: img, detail: 'high' }
-    }));
+    const audiverisPath = '/Applications/Audiveris.app/Contents/MacOS/Audiveris';
 
-    const response = await client.path('/chat/completions').post({
-      body: {
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert music transcription assistant. Analyze sheet music images and extract every note in order from left to right, top staff to bottom staff.
-
-Return ONLY a valid JSON array of note objects. Each note object must have:
-- "note": the note name with octave (e.g. "C4", "F#3", "Eb5")
-- "duration": duration type ("whole", "half", "quarter", "eighth", "sixteenth")
-- "clef": "treble" or "bass"
-- "isRest": true if it's a rest (omit "note" for rests)
-
-Use standard scientific pitch notation (C4 = middle C).
-For sharps use # (e.g. "F#4"), for flats use b (e.g. "Eb4").
-If there are two staves (grand staff), list treble clef notes first for each beat, then bass.
-For simplicity, focus on the melody (top voice) if there are chords.
-
-Example output:
-[{"note":"C4","duration":"quarter","clef":"treble"},{"note":"D4","duration":"quarter","clef":"treble"},{"note":"E4","duration":"half","clef":"treble"}]`
-          },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Please transcribe all notes from this sheet music in order:' },
-              ...imageMessages
-            ]
+    console.log('Running Audiveris on', inputPath);
+    const result = await new Promise((resolve, reject) => {
+      execFile(audiverisPath, ['-batch', '-export', '-output', outputDir, inputPath],
+        { timeout: 60000 },
+        (err, stdout, stderr) => {
+          if (err) {
+            console.error('Audiveris stderr:', stderr?.substring(0, 500));
+            reject(new Error(stderr || err.message));
+          } else {
+            resolve(stdout);
           }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1,
-      }
+        }
+      );
     });
 
-    console.log('AI response status:', response.status);
-    if (String(response.status) !== '200') {
-      const errBody = response.body;
-      console.error('AI API error:', JSON.stringify(errBody));
-      return res.status(502).json({ error: `AI API returned ${response.status}: ${errBody?.error?.message || JSON.stringify(errBody)}` });
+    // Find the .mxl output file
+    const { readdirSync, readFileSync } = await import('fs');
+    const files = readdirSync(outputDir);
+    const mxlFile = files.find(f => f.endsWith('.mxl'));
+
+    if (!mxlFile) {
+      return res.status(422).json({ error: 'Audiveris could not read the sheet music. Try a clearer image.' });
     }
 
-    const content = response.body.choices?.[0]?.message?.content || '';
-    // Extract JSON from the response (might be wrapped in markdown code block)
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      return res.status(422).json({ error: 'Could not parse notes from AI response', raw: content });
-    }
-
-    const notes = JSON.parse(jsonMatch[0]);
-    res.json({ notes });
+    // Read the .mxl and send as base64
+    const mxlData = readFileSync(join(outputDir, mxlFile));
+    res.json({ mxl: mxlData.toString('base64'), filename: mxlFile });
   } catch (err) {
     console.error('Transcription error:', err.message);
     res.status(500).json({ error: 'Transcription failed: ' + err.message });
+  } finally {
+    // Clean up temp files
+    const { rmSync } = await import('fs');
+    rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 

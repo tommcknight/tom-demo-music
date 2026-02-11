@@ -4,3 +4,4 @@ dist/
 .env
 *.db-shm
 *.db-wal
+tools/

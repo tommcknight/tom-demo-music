@@ -9,35 +9,45 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp',
+      'application/vnd.recordare.musicxml+xml', 'application/xml', 'text/xml'];
+    const validExts = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.xml', '.musicxml', '.mxl'];
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+    // If it's already a MusicXML file, pass it directly
+    if (ext === '.xml' || ext === '.musicxml' || ext === '.mxl') {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      onTranscribed({ mxl: base64, filename: file.name });
+      return;
+    }
+
+    if (!validExts.includes(ext)) {
+      setError('Please upload a PDF, image, or MusicXML file');
+      return;
+    }
+
     setFileName(file.name);
     setError(null);
     setLoading(true);
 
     try {
-      let images = [];
-
-      if (file.type === 'application/pdf') {
-        images = await pdfToImages(file);
-      } else if (file.type.startsWith('image/')) {
-        const dataUrl = await fileToDataUrl(file);
-        images = [dataUrl];
-      } else {
-        throw new Error('Please upload a PDF or image file');
-      }
+      const formData = new FormData();
+      formData.append('file', file);
 
       const res = await fetch('/api/transcribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images }),
+        body: formData,
       });
 
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { throw new Error(text || `Server error (${res.status})`); }
       if (!res.ok) throw new Error(data.error || 'Transcription failed');
-      if (!data.notes?.length) throw new Error('No notes found in the sheet music');
+      if (!data.mxl) throw new Error('No music data returned');
 
-      onTranscribed(data.notes);
+      onTranscribed(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -49,12 +59,12 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
     <div className="start-screen">
       <div className="logo">🎼</div>
       <h1>Sheet Music Player</h1>
-      <p className="subtitle">Upload sheet music and hear it played note by note!</p>
+      <p className="subtitle">Upload sheet music and hear it played with piano sound!</p>
 
       <div className="settings-card">
         <p style={{ fontSize: '14px', color: '#666', margin: '0 0 12px' }}>
-          Upload a PDF or image of sheet music. AI will read the notes and play them back for you.
-          Works best with simple, single-melody pieces.
+          Upload a PDF or image of sheet music. Audiveris OMR reads the notes
+          and OSMD plays them back with realistic piano sound.
         </p>
 
         <button
@@ -69,7 +79,7 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
         <input
           ref={fileRef}
           type="file"
-          accept=".pdf,image/*"
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.xml,.musicxml,.mxl"
           onChange={handleFile}
           style={{ display: 'none' }}
         />
@@ -81,7 +91,7 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
         {loading && (
           <div className="sp-loading">
             <div className="spinner" />
-            <p>AI is reading the sheet music... this may take a moment.</p>
+            <p>Reading sheet music with Audiveris... this may take a moment.</p>
           </div>
         )}
 
@@ -100,38 +110,4 @@ export default function SheetUploadScreen({ onTranscribed, onBack }) {
       </button>
     </div>
   );
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-async function pdfToImages(file) {
-  const pdfjsLib = await import('pdfjs-dist');
-  const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url);
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.href;
-
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const images = [];
-
-  // Render up to 4 pages
-  const pageCount = Math.min(pdf.numPages, 4);
-  for (let i = 1; i <= pageCount; i++) {
-    const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    images.push(canvas.toDataURL('image/jpeg', 0.8));
-  }
-
-  return images;
 }
