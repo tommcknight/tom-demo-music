@@ -1,9 +1,15 @@
 import { ALL_NOTE_NAMES } from '../utils/notes.js';
 
-export default function AnswerButtons({ onAnswer, revealed, correctAnswer, userAnswer }) {
+export default function AnswerButtons({ onAnswer, revealed, correctAnswer, userAnswer, includeSharps, includeFlats }) {
+  const visibleNotes = ALL_NOTE_NAMES.filter(note => {
+    if (note.includes('♯')) return includeSharps;
+    if (note.includes('♭')) return includeFlats;
+    return true;
+  });
+
   return (
     <div className="answer-buttons">
-      {ALL_NOTE_NAMES.map(note => {
+      {visibleNotes.map(note => {
         let className = 'btn-note';
         const hasAccidental = note.includes('♯') || note.includes('♭');
         if (hasAccidental) className += ' accidental';

@@ -79,6 +79,68 @@ button:active {
   font-weight: 600;
 }
 
+/* Settings Card */
+.settings-card {
+  background: var(--color-card);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+
+.settings-card h3 {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.setting-row label {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.count-picker {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-count {
+  width: 40px;
+  height: 36px;
+  font-size: 14px;
+  background: #f1f5f9;
+  color: var(--color-text);
+  border: 2px solid transparent;
+  border-radius: 10px;
+}
+
+.btn-count.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-toggle {
+  padding: 6px 18px;
+  font-size: 13px;
+  background: #e2e8f0;
+  color: var(--color-text-muted);
+  border-radius: 20px;
+}
+
+.btn-toggle.on {
+  background: var(--color-success);
+  color: white;
+}
+
 .start-info {
   display: flex;
   gap: 16px;
@@ -170,10 +232,35 @@ button:active {
   justify-content: center;
 }
 
+.question-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
 .question-prompt {
   font-size: 20px;
   font-weight: 700;
-  margin: 12px 0;
+}
+
+.btn-play-note {
+  font-size: 24px;
+  background: var(--color-card);
+  padding: 8px 14px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+
+.btn-play-note:hover {
+  border-color: var(--color-primary);
+  background: #f5f3ff;
+}
+
+.btn-play-note:active {
+  transform: scale(0.92);
 }
 
 /* Answer Buttons */

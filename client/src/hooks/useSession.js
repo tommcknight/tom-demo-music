@@ -1,8 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateSessionNotes } from '../utils/notes.js';
 
-const QUESTIONS_PER_SESSION = 10;
-
 export default function useSession() {
   const [phase, setPhase] = useState('start'); // start | playing | results
   const [notes, setNotes] = useState([]);
@@ -12,18 +10,37 @@ export default function useSession() {
   const [maxStreak, setMaxStreak] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [userAnswer, setUserAnswer] = useState(null);
+  const [sessionResult, setSessionResult] = useState(null);
   const questionStartTime = useRef(null);
   const sessionStartTime = useRef(null);
+  const answersRef = useRef([]);
+  const maxStreakRef = useRef(0);
+  const totalQuestionsRef = useRef(10);
+  const [settings, setSettings] = useState({ includeSharps: false, includeFlats: false, questionCount: 10 });
 
-  const startSession = useCallback(() => {
-    const generated = generateSessionNotes(QUESTIONS_PER_SESSION);
+  const startSession = useCallback((opts = {}) => {
+    const merged = {
+      includeSharps: opts.includeSharps ?? false,
+      includeFlats: opts.includeFlats ?? false,
+      questionCount: opts.questionCount || 10,
+    };
+    setSettings(merged);
+    const count = merged.questionCount;
+    const generated = generateSessionNotes(count, {
+      includeSharps: merged.includeSharps,
+      includeFlats: merged.includeFlats,
+    });
+    totalQuestionsRef.current = count;
     setNotes(generated);
     setCurrentIndex(0);
     setAnswers([]);
+    answersRef.current = [];
     setStreak(0);
     setMaxStreak(0);
+    maxStreakRef.current = 0;
     setRevealed(false);
     setUserAnswer(null);
+    setSessionResult(null);
     setPhase('playing');
     sessionStartTime.current = new Date().toISOString();
     questionStartTime.current = Date.now();
@@ -43,6 +60,7 @@ export default function useSession() {
     setRevealed(true);
     setStreak(newStreak);
     setMaxStreak(newMaxStreak);
+    maxStreakRef.current = newMaxStreak;
 
     const answerRecord = {
       questionNumber: currentIndex + 1,
@@ -55,11 +73,41 @@ export default function useSession() {
       createdAt: new Date().toISOString(),
     };
 
-    setAnswers(prev => [...prev, answerRecord]);
+    const updatedAnswers = [...answersRef.current, answerRecord];
+    answersRef.current = updatedAnswers;
+    setAnswers(updatedAnswers);
   }, [notes, currentIndex, revealed, streak, maxStreak]);
 
   const nextQuestion = useCallback(() => {
-    if (currentIndex + 1 >= QUESTIONS_PER_SESSION) {
+    const totalQ = totalQuestionsRef.current;
+    if (currentIndex + 1 >= totalQ) {
+      // Snapshot final session data and save immediately
+      const finalAnswers = answersRef.current;
+      const correctCount = finalAnswers.filter(a => a.isCorrect).length;
+      const avgTime = finalAnswers.length > 0
+        ? Math.round(finalAnswers.reduce((sum, a) => sum + a.responseTimeMs, 0) / finalAnswers.length)
+        : 0;
+
+      const result = {
+        startedAt: sessionStartTime.current,
+        endedAt: new Date().toISOString(),
+        totalQuestions: totalQ,
+        correctAnswers: correctCount,
+        accuracy: Math.round((correctCount / totalQ) * 100),
+        avgResponseTimeMs: avgTime,
+        streakMax: maxStreakRef.current,
+        answers: finalAnswers,
+      };
+
+      setSessionResult(result);
+
+      // Save to server immediately
+      fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result),
+      }).catch(err => console.error('Failed to save session:', err));
+
       setPhase('results');
     } else {
       setCurrentIndex(prev => prev + 1);
@@ -70,36 +118,19 @@ export default function useSession() {
   }, [currentIndex]);
 
   const currentNote = notes[currentIndex] || null;
-  const correctCount = answers.filter(a => a.isCorrect).length;
-  const avgTime = answers.length > 0
-    ? Math.round(answers.reduce((sum, a) => sum + a.responseTimeMs, 0) / answers.length)
-    : 0;
-
-  const sessionData = {
-    startedAt: sessionStartTime.current,
-    endedAt: new Date().toISOString(),
-    totalQuestions: QUESTIONS_PER_SESSION,
-    correctAnswers: correctCount,
-    accuracy: Math.round((correctCount / QUESTIONS_PER_SESSION) * 100),
-    avgResponseTimeMs: avgTime,
-    streakMax: maxStreak,
-    answers,
-  };
 
   return {
     phase,
     setPhase,
     currentNote,
     currentIndex,
-    totalQuestions: QUESTIONS_PER_SESSION,
+    totalQuestions: totalQuestionsRef.current,
     revealed,
     userAnswer,
     streak,
     maxStreak,
-    correctCount,
-    avgTime,
-    answers,
-    sessionData,
+    sessionResult,
+    settings,
     startSession,
     submitAnswer,
     nextQuestion,

@@ -55,11 +55,23 @@ export const ALL_NOTE_NAMES = [
   'C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'
 ];
 
-export function generateSessionNotes(count = 10) {
+export function generateSessionNotes(count = 10, options = {}) {
+  const { includeSharps = false, includeFlats = false } = options;
   const notes = [];
+
+  const filterNotes = (pool) => pool.filter(n => {
+    if (!n.accidental) return true;
+    if (n.accidental === 'sharp' && includeSharps) return true;
+    if (n.accidental === 'flat' && includeFlats) return true;
+    return false;
+  });
+
+  const treblePool = filterNotes(TREBLE_NOTES);
+  const bassPool = filterNotes(BASS_NOTES);
+
   for (let i = 0; i < count; i++) {
     const clef = Math.random() < 0.5 ? 'treble' : 'bass';
-    const pool = clef === 'treble' ? TREBLE_NOTES : BASS_NOTES;
+    const pool = clef === 'treble' ? treblePool : bassPool;
     const note = pool[Math.floor(Math.random() * pool.length)];
     notes.push({ ...note, clef });
   }

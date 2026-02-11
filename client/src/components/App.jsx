@@ -7,6 +7,7 @@ import Feedback from './Feedback.jsx';
 import ResultsScreen from './ResultsScreen.jsx';
 import HistoryScreen from './HistoryScreen.jsx';
 import NamePrompt from './NamePrompt.jsx';
+import PlayNoteButton from './PlayNoteButton.jsx';
 import { useState } from 'react';
 
 export default function App() {
@@ -47,8 +48,8 @@ export default function App() {
     return (
       <div className="app">
         <ResultsScreen
-          sessionData={session.sessionData}
-          onRestart={session.startSession}
+          sessionResult={session.sessionResult}
+          onRestart={() => session.setPhase('start')}
           onHome={() => session.setPhase('start')}
           playerName={playerName}
         />
@@ -70,13 +71,18 @@ export default function App() {
         userAnswer={session.userAnswer}
       />
 
-      <div className="question-prompt">What note is this?</div>
+      <div className="question-actions">
+        <div className="question-prompt">What note is this?</div>
+        <PlayNoteButton noteId={session.currentNote.id} />
+      </div>
 
       <AnswerButtons
         onAnswer={session.submitAnswer}
         revealed={session.revealed}
         correctAnswer={session.currentNote?.name}
         userAnswer={session.userAnswer}
+        includeSharps={session.settings?.includeSharps}
+        includeFlats={session.settings?.includeFlats}
       />
 
       {session.revealed && (

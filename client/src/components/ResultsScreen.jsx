@@ -1,43 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Confetti from './Confetti.jsx';
 
-export default function ResultsScreen({ sessionData, onRestart, onHome, playerName }) {
+export default function ResultsScreen({ sessionResult, onRestart, onHome, playerName }) {
   const [encouragement, setEncouragement] = useState(null);
-  const [saving, setSaving] = useState(true);
-  const savedRef = useRef(false);
 
   useEffect(() => {
-    if (savedRef.current) return;
-    savedRef.current = true;
-
-    // Save session to server
-    fetch('/api/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sessionData),
-    })
-      .then(() => setSaving(false))
-      .catch(() => setSaving(false));
-
-    // Get AI encouragement
+    if (!sessionResult) return;
+    // Get AI encouragement (session already saved by hook)
     fetch('/api/encouragement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         playerName: playerName || 'Student',
-        accuracy: sessionData.accuracy,
-        correctAnswers: sessionData.correctAnswers,
-        totalQuestions: sessionData.totalQuestions,
-        avgResponseTimeMs: sessionData.avgResponseTimeMs,
-        streakMax: sessionData.streakMax,
+        accuracy: sessionResult.accuracy,
+        correctAnswers: sessionResult.correctAnswers,
+        totalQuestions: sessionResult.totalQuestions,
+        avgResponseTimeMs: sessionResult.avgResponseTimeMs,
+        streakMax: sessionResult.streakMax,
       }),
     })
       .then(r => r.json())
       .then(data => setEncouragement(data.message))
       .catch(() => setEncouragement(null));
-  }, []);
+  }, [sessionResult]);
 
-  const { accuracy, correctAnswers, totalQuestions, avgResponseTimeMs, streakMax } = sessionData;
+  if (!sessionResult) return null;
+
+  const { accuracy, correctAnswers, totalQuestions, avgResponseTimeMs, streakMax } = sessionResult;
 
   const emoji = accuracy === 100 ? '🏆' : accuracy >= 80 ? '🌟' : accuracy >= 60 ? '👍' : '💪';
   const grade = accuracy === 100 ? 'PERFECT!' : accuracy >= 80 ? 'Great job!' : accuracy >= 60 ? 'Good effort!' : 'Keep practicing!';
@@ -73,8 +62,6 @@ export default function ResultsScreen({ sessionData, onRestart, onHome, playerNa
           <p>{encouragement}</p>
         </div>
       )}
-
-      {saving && <p className="saving-text">Saving...</p>}
 
       <div className="results-actions">
         <button className="btn-primary" onClick={onRestart}>Play Again! 🎵</button>
